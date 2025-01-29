@@ -1,14 +1,34 @@
 import os
 import openai
+import subprocess
 from pathlib import Path
+import sys
+
 
 # Set your OpenAI API key
-openai.api_key = "token"
+openai.api_key = os.getenv("OPEN_API_TOKEN")
 
-def get_java_files(directory):
+def run_command(command):
+    result = subprocess.run(command, shell=True, text=True, capture_output=True)
+    return result.stdout.strip(), result.stderr.strip()
+
+
+def get_conflicting_files():
+    stdout, _ = run_command("git status --porcelain")
+    conflicts = []
+    for line in stdout.splitlines():
+        if line.startswith("UU"):
+            conflicts.append(line[3:])  # Extract file name
+    return conflicts
+
+def get_java_files():
+  
+    conflicts = get_conflicting_files()
+    
     """Recursively finds all Java files in the given directory."""
-    return [file for file in Path(directory).rglob("*.java")]
-
+    javafiles = [file for file in conflicts if file.endswith(".java")]
+    return javafiles
+  
 def read_file(file_path):
     """Reads the content of a file."""
     print(file_path)
@@ -42,7 +62,9 @@ def write_file(file_path, content):
         f.write(content)
 
 def main(directory):
-    java_files = get_java_files(directory)
+    java_files = get_java_files()
+    print("starting conflicts resolved {directory}" )
+
     conflict_count = {}
     
     for file in java_files:
@@ -60,5 +82,6 @@ def main(directory):
         print(f"{filename}: {count} conflicts resolved")
 
 if __name__ == "__main__":
-    input_directory = "C:/code/hadoop-3.1.1/hadoop/"
+    input_directory = sys.argv[1]
+    os.chdir(input_directory)
     main(input_directory)
